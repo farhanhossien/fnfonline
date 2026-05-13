@@ -680,27 +680,25 @@
     <script>
         async function logVisitor() {
             try {
-                // Initialize Supabase only when needed and check if library exists
                 if (!window.supabase) return;
                 const SB_URL = "https://smjxhkelvexefmnwdwdx.supabase.co";
                 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNtanhoa2VsdmV4ZWZtbndkd2R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2OTA4NzksImV4cCI6MjA5NDI2Njg3OX0.6wplAUcTRMu5XimCjb3EhkYpatgkOvkiAqN6F9pwbfc";
                 const client = window.supabase.createClient(SB_URL, SB_KEY);
 
-                // Fetch IP/ISP info
-                const response = await fetch('https://ipapi.co/json/').catch(() => null);
+                // Use ipwho.is for better CORS support
+                const response = await fetch('https://ipwho.is/').catch(() => null);
                 if (!response) return;
                 const data = await response.json().catch(() => ({}));
                 
                 if (!data.ip) return;
 
-                // Log to Supabase
                 await client
                     .from('visitor_logs')
                     .insert([{ 
                         ip: data.ip, 
-                        isp: data.org || 'Unknown', 
+                        isp: data.connection?.isp || 'Unknown', 
                         city: data.city || 'Unknown', 
-                        country: data.country_name || 'Unknown',
+                        country: data.country || 'Unknown',
                         user_agent: navigator.userAgent
                     }]);
             } catch (err) {
