@@ -763,44 +763,43 @@
 
         function loadData() {
             const storedState = localStorage.getItem('fnfOnlineState');
+            let hasChanges = false;
+
             if (storedState) {
                 try {
                     state = JSON.parse(storedState);
-                    if (!state.settings) state.settings = { ...DEFAULT_SETTINGS };
-                    if (!state.settings.title) state.settings.title = "FNF Online";
-                    if (state.settings.notice === "Welcome to FNF Online Portal!" || !state.settings.notice) state.settings.notice = "Welcome to FNF Online FTP Portal";
+                    if (!state.settings) { state.settings = { ...DEFAULT_SETTINGS }; hasChanges = true; }
                     
-                    // Update placeholders with new defaults
-                    DEFAULT_FTP_SERVERS.forEach(def => {
-                        const existing = state.ftp.find(i => i.id === def.id);
-                        if (existing) {
-                            existing.name = def.name;
-                            existing.url = def.url;
-                        } else {
-                            state.ftp.push(def);
-                        }
-                    });
-                    DEFAULT_TV_CHANNELS.forEach(def => {
-                        const existing = state.tv.find(i => i.id === def.id);
-                        if (existing) {
-                            existing.name = def.name;
-                            existing.url = def.url;
-                        } else {
-                            state.tv.push(def);
-                        }
-                    });
+                    // Merge logic: Keep stored clicks/favs but allow code updates to names/urls
+                    const mergeItems = (currentList, defaultList) => {
+                        defaultList.forEach(def => {
+                            const existing = currentList.find(i => i.id === def.id);
+                            if (existing) {
+                                // Update name/url if changed in code, but keep clicks/favs
+                                if (existing.url !== def.url || existing.name !== def.name) {
+                                    existing.url = def.url;
+                                    existing.name = def.name;
+                                    hasChanges = true;
+                                }
+                            } else {
+                                // Add new default items if they don't exist
+                                currentList.push({ ...def });
+                                hasChanges = true;
+                            }
+                        });
+                    };
 
-                    // Migrate old data missing fields
-                    [...state.ftp, ...state.tv].forEach(item => {
-                        if(typeof item.clicks === 'undefined') item.clicks = 0;
-                        if(typeof item.favorite === 'undefined') item.favorite = false;
-                    });
-                    saveData(); // save the updated names/urls
+                    mergeItems(state.ftp, DEFAULT_FTP_SERVERS);
+                    mergeItems(state.tv, DEFAULT_TV_CHANNELS);
+
+                    if (hasChanges) saveData();
                 } catch (e) { initDefaults(); }
             } else { initDefaults(); }
+            
             applySettings();
             renderApp();
-            // Start status checks in background
+            
+            // Start background status checks
             [...state.ftp, ...state.tv].forEach(item => {
                 if (item.active) checkStatus(item);
             });
@@ -815,7 +814,9 @@
             saveData();
         }
 
-        function saveData() { localStorage.setItem('fnfOnlineState', JSON.stringify(state)); }
+        function saveData() { 
+            localStorage.setItem('fnfOnlineState', JSON.stringify(state)); 
+        }
 
         // --- PING FEATURE ---
         async function checkStatus(item) {
