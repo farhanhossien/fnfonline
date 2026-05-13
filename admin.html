@@ -321,7 +321,7 @@
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNtanhoa2VsdmV4ZWZtbndkd2R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2OTA4NzksImV4cCI6MjA5NDI2Njg3OX0.6wplAUcTRMu5XimCjb3EhkYpatgkOvkiAqN6F9pwbfc";
         
         function getSupabase() {
-            return window.supabase ? window.createClient(SB_URL, SB_KEY) : null;
+            return window.supabase ? window.supabase.createClient(SB_URL, SB_KEY) : null;
         }
 
         let state = { ftp: [], tv: [], settings: {} };
