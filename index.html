@@ -867,11 +867,10 @@
             if(el) {
                 el.className = `badge ${status}`;
                 
-                if (status === 'ready') {
-                    el.textContent = 'Ready';
-                    el.style.backgroundColor = 'rgba(0, 245, 212, 0.1)';
-                    el.style.color = 'var(--accent-color)';
-                    el.title = "Direct link: Browser security restricts status checks for HTTP links on HTTPS sites.";
+                if (status === 'ready' || status === 'online') {
+                    el.textContent = 'Online';
+                    el.className = 'badge online';
+                    el.style = ''; // Reset custom styles
                 } else {
                     el.textContent = status.charAt(0).toUpperCase() + status.slice(1);
                 }
