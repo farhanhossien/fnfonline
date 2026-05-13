@@ -319,7 +319,10 @@
     <script>
         const SB_URL = "https://smjxhkelvexefmnwdwdx.supabase.co";
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNtanhoa2VsdmV4ZWZtbndkd2R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2OTA4NzksImV4cCI6MjA5NDI2Njg3OX0.6wplAUcTRMu5XimCjb3EhkYpatgkOvkiAqN6F9pwbfc";
-        const supabase = window.supabase ? window.createClient(SB_URL, SB_KEY) : null;
+        
+        function getSupabase() {
+            return window.supabase ? window.createClient(SB_URL, SB_KEY) : null;
+        }
 
         let state = { ftp: [], tv: [], settings: {} };
 
@@ -370,8 +373,9 @@
             document.getElementById('stat-total-clicks').textContent = totalClicks;
             
             // Fetch visitor count from Supabase
-            if (supabase) {
-                supabase.from('visitor_logs').select('*', { count: 'exact', head: true })
+            const client = getSupabase();
+            if (client) {
+                client.from('visitor_logs').select('*', { count: 'exact', head: true })
                     .then(({ count }) => {
                         document.getElementById('stat-total-visitors').textContent = count || 0;
                     });
@@ -429,8 +433,9 @@
         }
 
         async function fetchVisitorLogs() {
-            if (!supabase) return;
-            const { data, error } = await supabase
+            const client = getSupabase();
+            if (!client) return;
+            const { data, error } = await client
                 .from('visitor_logs')
                 .select('*')
                 .order('created_at', { ascending: false })
