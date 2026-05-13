@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FNF Admin Control Center</title>
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --bg-dark: #050508;
@@ -175,6 +176,7 @@
             </div>
             <ul class="nav-links">
                 <li class="nav-link active" onclick="showSection('overview')"><i>📊</i> Overview</li>
+                <li class="nav-link" onclick="showSection('visitor')"><i>👥</i> Visitor Logs</li>
                 <li class="nav-link" onclick="showSection('ftp')"><i>📁</i> FTP Servers</li>
                 <li class="nav-link" onclick="showSection('tv')"><i>📺</i> Live TV</li>
                 <li class="nav-link" onclick="showSection('settings')"><i>⚙️</i> Settings</li>
@@ -206,7 +208,11 @@
                         <span class="stat-value" id="stat-total-tv">0</span>
                     </div>
                     <div class="stat-card glass">
-                        <span class="stat-label">Total Visits</span>
+                        <span class="stat-label">Unique Visitors</span>
+                        <span class="stat-value" id="stat-total-visitors">0</span>
+                    </div>
+                    <div class="stat-card glass">
+                        <span class="stat-label">Total Clicks</span>
                         <span class="stat-value" id="stat-total-clicks">0</span>
                     </div>
                 </div>
@@ -219,6 +225,20 @@
                         <button onclick="document.getElementById('import-input').click()" class="btn btn-outline">Restore Backup</button>
                         <input type="file" id="import-input" style="display:none" onchange="importData(this)">
                     </div>
+                </div>
+            </div>
+
+            <!-- Visitor Section -->
+            <div id="visitor-section" class="content-section">
+                <div class="panel-header">
+                    <h3 style="font-family: var(--font-mono);">Live Access Logs</h3>
+                    <button onclick="fetchVisitorLogs()" class="btn btn-outline" style="font-size: 0.7rem;">Refresh Logs</button>
+                </div>
+                <div class="table-container glass">
+                    <table id="visitor-table">
+                        <thead><tr><th>Time</th><th>IP Address</th><th>Network / ISP</th><th>Location</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
             </div>
 
@@ -297,6 +317,10 @@
     <div id="toast">Action Complete</div>
 
     <script>
+        const SB_URL = "https://smjxhkelvexefmnwdwdx.supabase.co";
+        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNtanhoa2VsdmV4ZWZtbndkd2R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2OTA4NzksImV4cCI6MjA5NDI2Njg3OX0.6wplAUcTRMu5XimCjb3EhkYpatgkOvkiAqN6F9pwbfc";
+        const supabase = window.supabase ? window.createClient(SB_URL, SB_KEY) : null;
+
         let state = { ftp: [], tv: [], settings: {} };
 
         // Auth
@@ -344,6 +368,14 @@
             document.getElementById('stat-total-tv').textContent = state.tv.length;
             const totalClicks = [...state.ftp, ...state.tv].reduce((acc, curr) => acc + (curr.clicks || 0), 0);
             document.getElementById('stat-total-clicks').textContent = totalClicks;
+            
+            // Fetch visitor count from Supabase
+            if (supabase) {
+                supabase.from('visitor_logs').select('*', { count: 'exact', head: true })
+                    .then(({ count }) => {
+                        document.getElementById('stat-total-visitors').textContent = count || 0;
+                    });
+            }
         }
 
         function renderTables() {
@@ -390,9 +422,31 @@
             // Highlight nav link
             const links = document.querySelectorAll('.nav-link');
             if (id === 'overview') links[0].classList.add('active');
-            else if (id === 'ftp') links[1].classList.add('active');
-            else if (id === 'tv') links[2].classList.add('active');
-            else if (id === 'settings') links[3].classList.add('active');
+            else if (id === 'visitor') { links[1].classList.add('active'); fetchVisitorLogs(); }
+            else if (id === 'ftp') links[2].classList.add('active');
+            else if (id === 'tv') links[3].classList.add('active');
+            else if (id === 'settings') links[4].classList.add('active');
+        }
+
+        async function fetchVisitorLogs() {
+            if (!supabase) return;
+            const { data, error } = await supabase
+                .from('visitor_logs')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(100);
+            
+            if (data) {
+                const tbody = document.querySelector('#visitor-table tbody');
+                tbody.innerHTML = data.map(log => `
+                    <tr>
+                        <td style="font-size: 0.8rem; color: var(--text-dim);">${new Date(log.created_at).toLocaleString()}</td>
+                        <td style="font-family: var(--font-mono); color: var(--accent-primary);">${log.ip}</td>
+                        <td style="font-weight: 600;">${log.isp || 'Unknown'}</td>
+                        <td style="font-size: 0.85rem;">${log.city || ''}, ${log.country || ''}</td>
+                    </tr>
+                `).join('');
+            }
         }
 
         window.toggleActive = (id, type, val) => {
