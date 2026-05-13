@@ -819,19 +819,28 @@
 
         // --- PING FEATURE ---
         async function checkStatus(item) {
-            // If already checked and not in progress, return cached status
             if(statusCache[item.id] && statusCache[item.id] !== 'checking') return statusCache[item.id];
             
             statusCache[item.id] = 'checking';
             updateCardStatusUI(item.id, 'checking');
 
-            // Use a combination of fetch and image ping for maximum reliability
+            // Handle Mixed Content: HTTPS sites cannot fetch HTTP resources
+            const isHttpsSite = window.location.protocol === 'https:';
+            const isTargetHttp = item.url.startsWith('http:');
+
+            if (isHttpsSite && isTargetHttp) {
+                // Cannot reliably check HTTP status from HTTPS site due to browser security
+                statusCache[item.id] = 'ready'; 
+                updateCardStatusUI(item.id, 'ready');
+                return 'ready';
+            }
+
             const isReachable = await new Promise((resolve) => {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => {
                     controller.abort();
                     resolve(false);
-                }, 3500); // Increased timeout to 3.5s
+                }, 3500);
 
                 fetch(item.url, { mode: 'no-cors', signal: controller.signal, cache: 'no-store' })
                     .then(() => {
@@ -839,7 +848,6 @@
                         resolve(true);
                     })
                     .catch(() => {
-                        // Fallback: Try image ping if fetch fails (some ISP servers block fetch)
                         const img = new Image();
                         img.onload = () => { clearTimeout(timeoutId); resolve(true); };
                         img.onerror = () => { clearTimeout(timeoutId); resolve(false); };
@@ -857,7 +865,15 @@
             const card = el ? el.closest('.card') : null;
             if(el) {
                 el.className = `badge ${status}`;
-                el.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+                
+                if (status === 'ready') {
+                    el.textContent = 'Ready';
+                    el.style.backgroundColor = 'rgba(0, 245, 212, 0.1)';
+                    el.style.color = 'var(--accent-color)';
+                    el.title = "Direct link: Browser security restricts status checks for HTTP links on HTTPS sites.";
+                } else {
+                    el.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+                }
                 
                 if (card) {
                     if (status === 'offline') {
@@ -869,12 +885,12 @@
                             btn.style.color = 'var(--danger-color)';
                             btn.style.background = 'rgba(239, 68, 68, 0.1)';
                         }
-                    } else if (status === 'online') {
+                    } else {
                         card.style.opacity = '1';
                         const btn = card.querySelector('.btn');
                         if (btn) {
                             btn.textContent = 'Open Server';
-                            btn.style = ''; // Reset to default CSS
+                            btn.style = ''; 
                         }
                     }
                 }
