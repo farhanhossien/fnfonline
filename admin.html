@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FNF Admin Control Center</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #050508;
+            --panel-bg: rgba(15, 15, 25, 0.8);
+            --accent-primary: #00f5d4;
+            --accent-secondary: #ff2a6d;
+            --text-main: #e2e8f0;
+            --text-dim: #94a3b8;
+            --glass-border: rgba(0, 245, 212, 0.15);
+            --danger: #ef4444;
+            --font-mono: 'Share Tech Mono', monospace;
+            --font-sans: 'IBM Plex Sans', sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(0, 245, 212, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(255, 42, 109, 0.05) 0%, transparent 40%);
+        }
+
+        .glass {
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+        }
+
+        /* Login Gate */
+        #login-gate {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-dark); z-index: 10000;
+            display: flex; align-items: center; justify-content: center;
+            transition: transform 0.8s cubic-bezier(0.87, 0, 0.13, 1);
+        }
+        #login-gate.unlocked { transform: translateY(-100%); }
+
+        .login-box {
+            width: 90%; max-width: 400px; padding: 3rem; text-align: center;
+            box-shadow: 0 0 50px rgba(0, 245, 212, 0.1);
+        }
+        .login-box h1 { font-family: var(--font-mono); color: var(--accent-primary); margin-bottom: 2rem; font-size: 1.5rem; letter-spacing: 4px; }
+        
+        input[type="password"], input[type="text"] {
+            width: 100%; padding: 1rem; background: rgba(0,0,0,0.5);
+            border: 1px solid var(--glass-border); border-radius: 8px;
+            color: var(--accent-primary); font-family: var(--font-mono); margin-bottom: 1.5rem;
+            text-align: center; transition: 0.3s;
+        }
+        input:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 15px rgba(0, 245, 212, 0.3); }
+
+        .btn {
+            padding: 0.8rem 2rem; border-radius: 8px; border: none; cursor: pointer;
+            font-family: var(--font-mono); font-weight: bold; transition: 0.3s; text-transform: uppercase;
+        }
+        .btn-primary { background: var(--accent-primary); color: #000; box-shadow: 0 0 20px rgba(0, 245, 212, 0.2); }
+        .btn-primary:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(0, 245, 212, 0.4); }
+
+        /* Dashboard Layout */
+        .admin-container {
+            display: grid; grid-template-columns: 260px 1fr; min-height: 100vh;
+        }
+
+        @media (max-width: 900px) {
+            .admin-container { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+        }
+
+        /* Sidebar */
+        .sidebar {
+            padding: 2rem; border-right: 1px solid var(--glass-border); background: rgba(0,0,0,0.3);
+            display: flex; flex-direction: column; gap: 2rem;
+        }
+        .logo { font-family: var(--font-mono); font-size: 1.2rem; color: var(--accent-primary); display: flex; align-items: center; gap: 10px; }
+        .logo i { font-size: 1.5rem; }
+
+        .nav-links { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+        .nav-link {
+            padding: 1rem; border-radius: 8px; cursor: pointer; transition: 0.3s;
+            color: var(--text-dim); display: flex; align-items: center; gap: 12px;
+        }
+        .nav-link:hover, .nav-link.active { background: rgba(0, 245, 212, 0.1); color: var(--accent-primary); }
+
+        /* Main Content */
+        .main-content { padding: 2rem; overflow-y: auto; max-height: 100vh; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .page-title { font-family: var(--font-mono); font-size: 1.5rem; }
+
+        /* Stats Cards */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem; }
+        .stat-card { padding: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem; border-left: 4px solid var(--accent-primary); }
+        .stat-card.tv { border-color: var(--accent-secondary); }
+        .stat-label { color: var(--text-dim); font-size: 0.8rem; text-transform: uppercase; }
+        .stat-value { font-family: var(--font-mono); font-size: 2rem; color: #fff; }
+
+        /* Section Panels */
+        .content-section { display: none; animation: slideUp 0.5s ease-out; }
+        .content-section.active { display: block; }
+
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        .add-card { padding: 2rem; margin-bottom: 2rem; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr auto; gap: 1rem; align-items: end; }
+        @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+
+        .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
+        .form-group label { font-size: 0.8rem; color: var(--text-dim); font-family: var(--font-mono); }
+        .form-group input { margin-bottom: 0; text-align: left; background: rgba(255,255,255,0.05); }
+
+        /* Table */
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        th { text-align: left; padding: 1rem; color: var(--accent-primary); font-family: var(--font-mono); font-size: 0.8rem; border-bottom: 1px solid var(--glass-border); }
+        td { padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: middle; }
+        
+        .item-icon { width: 32px; height: 32px; border-radius: 6px; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+        .item-name { font-weight: 600; }
+        .item-url { color: var(--text-dim); font-size: 0.85rem; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* Toggle Switch */
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.1); transition: .4s; border-radius: 24px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background: #fff; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background: var(--accent-primary); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        .btn-icon { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 1.2rem; transition: 0.3s; padding: 5px; }
+        .btn-icon:hover { color: var(--danger); transform: scale(1.2); }
+
+        /* Toast */
+        #toast { position: fixed; bottom: 2rem; right: 2rem; padding: 1rem 2rem; border-radius: 8px; font-weight: bold; transform: translateX(200%); transition: 0.5s; z-index: 11000; }
+        #toast.show { transform: translateX(0); }
+        .toast-success { background: var(--accent-primary); color: #000; }
+        .toast-error { background: var(--danger); color: #fff; }
+
+        .backup-controls { display: flex; gap: 1rem; margin-top: 2rem; }
+        .btn-outline { background: transparent; border: 1px solid var(--glass-border); color: var(--text-main); }
+        .btn-outline:hover { background: rgba(255,255,255,0.05); }
+
+    </style>
+</head>
+<body>
+
+    <!-- Login Gate -->
+    <div id="login-gate">
+        <div class="login-box glass">
+            <h1>SYSTEM LOGIN</h1>
+            <input type="password" id="admin-pass" placeholder="ACCESS KEY">
+            <button onclick="attemptLogin()" class="btn btn-primary">Decrypt Access</button>
+            <p id="login-msg" style="margin-top: 1.5rem; font-size: 0.8rem; color: var(--danger); display: none;">ACCESS DENIED: KEY INVALID</p>
+            <div style="margin-top: 2rem;"><a href="index.html" style="color: var(--text-dim); text-decoration: none; font-size: 0.8rem;">← Back to Dashboard</a></div>
+        </div>
+    </div>
+
+    <div class="admin-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="logo">
+                <i>🔒</i> FNF ADMIN
+            </div>
+            <ul class="nav-links">
+                <li class="nav-link active" onclick="showSection('overview')"><i>📊</i> Overview</li>
+                <li class="nav-link" onclick="showSection('ftp')"><i>📁</i> FTP Servers</li>
+                <li class="nav-link" onclick="showSection('tv')"><i>📺</i> Live TV</li>
+                <li class="nav-link" onclick="showSection('settings')"><i>⚙️</i> Settings</li>
+            </ul>
+            <div style="margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--glass-border);">
+                <button onclick="logout()" class="btn btn-outline" style="width: 100%; font-size: 0.8rem;">Logout</button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="header">
+                <h2 class="page-title" id="section-title">Overview</h2>
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <span id="current-time" style="font-family: var(--font-mono); color: var(--accent-primary);"></span>
+                    <a href="index.html" target="_blank" class="btn btn-outline" style="font-size: 0.7rem; padding: 0.5rem 1rem;">View Site ↗</a>
+                </div>
+            </div>
+
+            <!-- Overview Section -->
+            <div id="overview-section" class="content-section active">
+                <div class="stats-grid">
+                    <div class="stat-card glass">
+                        <span class="stat-label">Total Servers</span>
+                        <span class="stat-value" id="stat-total-ftp">0</span>
+                    </div>
+                    <div class="stat-card glass tv">
+                        <span class="stat-label">Live Channels</span>
+                        <span class="stat-value" id="stat-total-tv">0</span>
+                    </div>
+                    <div class="stat-card glass">
+                        <span class="stat-label">Total Visits</span>
+                        <span class="stat-value" id="stat-total-clicks">0</span>
+                    </div>
+                </div>
+
+                <div class="glass" style="padding: 2rem;">
+                    <h3 style="margin-bottom: 1.5rem; font-family: var(--font-mono);">System Performance</h3>
+                    <p style="color: var(--text-dim); line-height: 1.6;">Welcome to the Control Center. From here you can manage all local and external network resources. Changes made here are reflected immediately across the FNF Online network.</p>
+                    <div class="backup-controls">
+                        <button onclick="exportData()" class="btn btn-outline">Backup Data</button>
+                        <button onclick="document.getElementById('import-input').click()" class="btn btn-outline">Restore Backup</button>
+                        <input type="file" id="import-input" style="display:none" onchange="importData(this)">
+                    </div>
+                </div>
+            </div>
+
+            <!-- FTP Section -->
+            <div id="ftp-section" class="content-section">
+                <div class="add-card glass">
+                    <h3 style="margin-bottom: 1.5rem; font-family: var(--font-mono); font-size: 1rem;">Add New Resource</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Display Name</label>
+                            <input type="text" id="new-ftp-name" placeholder="e.g. Movie Server">
+                        </div>
+                        <div class="form-group">
+                            <label>Network URL</label>
+                            <input type="text" id="new-ftp-url" placeholder="http://...">
+                        </div>
+                        <button onclick="addResource('ftp')" class="btn btn-primary">Deploy</button>
+                    </div>
+                </div>
+
+                <div class="table-container glass">
+                    <table id="ftp-table">
+                        <thead><tr><th>Resource</th><th>Address</th><th>Clicks</th><th>Status</th><th>Actions</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TV Section -->
+            <div id="tv-section" class="content-section">
+                <div class="add-card glass">
+                    <h3 style="margin-bottom: 1.5rem; font-family: var(--font-mono); font-size: 1rem;">Add New Channel</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Channel Name</label>
+                            <input type="text" id="new-tv-name" placeholder="e.g. Sports HD">
+                        </div>
+                        <div class="form-group">
+                            <label>Stream URL</label>
+                            <input type="text" id="new-tv-url" placeholder="http://...">
+                        </div>
+                        <button onclick="addResource('tv')" class="btn btn-primary">Deploy</button>
+                    </div>
+                </div>
+
+                <div class="table-container glass">
+                    <table id="tv-table">
+                        <thead><tr><th>Channel</th><th>Source</th><th>Clicks</th><th>Status</th><th>Actions</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Settings Section -->
+            <div id="settings-section" class="content-section">
+                <div class="glass" style="padding: 2rem; max-width: 600px;">
+                    <div class="form-group" style="margin-bottom: 2rem;">
+                        <label>Portal Title</label>
+                        <input type="text" id="set-title">
+                        <button onclick="saveSetting('title')" class="btn btn-primary" style="margin-top: 1rem; width: fit-content;">Update Title</button>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 2rem;">
+                        <label>Welcome Message</label>
+                        <input type="text" id="set-notice">
+                        <button onclick="saveSetting('notice')" class="btn btn-primary" style="margin-top: 1rem; width: fit-content;">Update Welcome</button>
+                    </div>
+                    <div style="padding-top: 2rem; border-top: 1px solid var(--glass-border);">
+                        <h4 style="color: var(--danger); margin-bottom: 1rem;">Destructive Zone</h4>
+                        <button onclick="factoryReset()" class="btn btn-outline" style="color: var(--danger); border-color: var(--danger);">Factory Reset System</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast">Action Complete</div>
+
+    <script>
+        let state = { ftp: [], tv: [], settings: {} };
+
+        // Auth
+        function attemptLogin() {
+            const pass = document.getElementById('admin-pass').value;
+            if (pass === 'admin123') {
+                sessionStorage.setItem('fnf_admin_session', Date.now());
+                document.getElementById('login-gate').classList.add('unlocked');
+            } else {
+                document.getElementById('login-msg').style.display = 'block';
+            }
+        }
+
+        function checkAuth() {
+            const session = sessionStorage.getItem('fnf_admin_session');
+            if (session) {
+                document.getElementById('login-gate').classList.add('unlocked');
+            }
+        }
+
+        function logout() {
+            sessionStorage.removeItem('fnf_admin_session');
+            location.reload();
+        }
+
+        // Data Handling
+        function loadData() {
+            const stored = localStorage.getItem('fnfOnlineState');
+            if (stored) {
+                state = JSON.parse(stored);
+                renderStats();
+                renderTables();
+                populateSettings();
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('fnfOnlineState', JSON.stringify(state));
+            renderStats();
+            renderTables();
+        }
+
+        function renderStats() {
+            document.getElementById('stat-total-ftp').textContent = state.ftp.length;
+            document.getElementById('stat-total-tv').textContent = state.tv.length;
+            const totalClicks = [...state.ftp, ...state.tv].reduce((acc, curr) => acc + (curr.clicks || 0), 0);
+            document.getElementById('stat-total-clicks').textContent = totalClicks;
+        }
+
+        function renderTables() {
+            const renderTable = (list, tableId, type) => {
+                const tbody = document.querySelector(`#${tableId} tbody`);
+                tbody.innerHTML = list.map(item => `
+                    <tr>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div class="item-icon">${type==='ftp'?'📁':'📺'}</div>
+                                <span class="item-name">${item.name}</span>
+                            </div>
+                        </td>
+                        <td><div class="item-url">${item.url}</div></td>
+                        <td>${item.clicks || 0}</td>
+                        <td>
+                            <label class="switch">
+                                <input type="checkbox" ${item.active ? 'checked' : ''} onchange="toggleActive('${item.id}', '${type}', this.checked)">
+                                <span class="slider"></span>
+                            </label>
+                        </td>
+                        <td>
+                            <button onclick="deleteItem('${item.id}', '${type}')" class="btn-icon">🗑️</button>
+                        </td>
+                    </tr>
+                `).join('');
+            };
+            renderTable(state.ftp, 'ftp-table', 'ftp');
+            renderTable(state.tv, 'tv-table', 'tv');
+        }
+
+        function populateSettings() {
+            document.getElementById('set-title').value = state.settings.title || '';
+            document.getElementById('set-notice').value = state.settings.notice || '';
+        }
+
+        // Actions
+        function showSection(id) {
+            document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            document.getElementById(`${id}-section`).classList.add('active');
+            document.getElementById('section-title').textContent = id.charAt(0).toUpperCase() + id.slice(1);
+            
+            // Highlight nav link
+            const links = document.querySelectorAll('.nav-link');
+            if (id === 'overview') links[0].classList.add('active');
+            else if (id === 'ftp') links[1].classList.add('active');
+            else if (id === 'tv') links[2].classList.add('active');
+            else if (id === 'settings') links[3].classList.add('active');
+        }
+
+        window.toggleActive = (id, type, val) => {
+            const list = type === 'ftp' ? state.ftp : state.tv;
+            const item = list.find(i => i.id === id);
+            if (item) {
+                item.active = val;
+                saveData();
+                showToast('Status Updated');
+            }
+        };
+
+        window.deleteItem = (id, type) => {
+            if (confirm('Permanently remove this resource?')) {
+                if (type === 'ftp') state.ftp = state.ftp.filter(i => i.id !== id);
+                else state.tv = state.tv.filter(i => i.id !== id);
+                saveData();
+                showToast('Resource Deleted');
+            }
+        };
+
+        function addResource(type) {
+            const nameEl = document.getElementById(`new-${type}-name`);
+            const urlEl = document.getElementById(`new-${type}-url`);
+            const name = nameEl.value.trim();
+            const url = urlEl.value.trim();
+
+            if (name && url) {
+                const newItem = {
+                    id: (type === 'ftp' ? 'f' : 't') + Date.now(),
+                    name,
+                    url,
+                    active: true,
+                    clicks: 0,
+                    favorite: false,
+                    icon: ''
+                };
+                if (type === 'ftp') state.ftp.push(newItem);
+                else state.tv.push(newItem);
+                
+                nameEl.value = '';
+                urlEl.value = '';
+                saveData();
+                showToast('New Resource Deployed');
+            } else {
+                showToast('All fields required', true);
+            }
+        }
+
+        function saveSetting(key) {
+            const val = document.getElementById(`set-${key}`).value.trim();
+            state.settings[key] = val;
+            saveData();
+            showToast('Settings Updated');
+        }
+
+        function factoryReset() {
+            if (confirm('DANGER: This will wipe all servers and settings. Proceed?')) {
+                localStorage.removeItem('fnfOnlineState');
+                location.reload();
+            }
+        }
+
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className = isError ? 'toast-error show' : 'toast-success show';
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Backup
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "fnf_backup_" + Date.now() + ".json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function importData(input) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const imported = JSON.parse(e.target.result);
+                        if (imported.ftp && imported.tv) {
+                            state = imported;
+                            saveData();
+                            location.reload();
+                        }
+                    } catch (err) {
+                        showToast('Invalid Backup File', true);
+                    }
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        // Clock
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('current-time').textContent = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+        }, 1000);
+
+        // Init
+        checkAuth();
+        loadData();
+        document.getElementById('admin-pass').addEventListener('keypress', (e) => { if(e.key === 'Enter') attemptLogin(); });
+    </script>
+</body>
+</html>
